@@ -1,5 +1,14 @@
 # Fly Video Analysis
 
 Collection of workflows, scripts, pipelines etc that process and analyze recordings of flies.
-Each folder contains a separate workflow with its own readme.
 
+
+# Installation
+
+```
+# create conda environment with necessary dependencies
+conda create -n video_analysis -f environment.yml
+
+# install local package
+pip install -e .
+```
