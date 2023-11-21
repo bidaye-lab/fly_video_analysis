@@ -5,6 +5,10 @@ Collection of workflows, scripts, pipelines etc that process and analyze recordi
 
 # Installation
 
-```python
+```
+# create conda environment with necessary dependencies
+conda create -n video_analysis -f environment.yml
+
+# install local package
 pip install -e .
 ```

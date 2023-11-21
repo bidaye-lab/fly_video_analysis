@@ -1,0 +1,16 @@
+name: video_analysis
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8
+  - scipy
+  - ca-certificates
+  - openssl
+  - pandas
+  - h5py
+  - matplotlib
+  - seaborn
+  - pillow
+  - scikit-video
+  - certifi
+  - ipykernel
