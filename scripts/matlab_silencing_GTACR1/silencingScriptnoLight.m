@@ -4,7 +4,7 @@
 subFolders = dir(pwd);
 realSubFolders = subFolders([subFolders.isdir]');
 realSubFolders = realSubFolders(3:end);
-
+%%test comment 
 % Initialise video temporal parameters
 fps = 30; %frames per second
 
