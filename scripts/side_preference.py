@@ -73,6 +73,7 @@ results = fa.get_sides(data, line)
 # - `fly{n}_trajectories.png`: left/right separation of trajectory for fly n 
 # - `fly{n}_stops.png`: velocity traces and stops for fly n
 # - `summary.csv`: summary for all flies
+# - `video_annotated.avi`: chamber recording showing the stopping bouts
 
 # %%
 # thresholds for stop analysis
@@ -85,10 +86,8 @@ fa.add_velocity(results, sigma=smooth_vel)
 fa.count_stops(results, thresh_vel, thresh_walk, thresh_stop)
 
 for fly, res in results.items():
-
     # plot trajectories
     fa.plot_trajectory(p_frame, sep, line, res, path=p_out / f'fly{fly}_trajectories.png')
-
     # plot velocity and stops
     fa.plot_velocity_and_stops(res, thresh_vel, path=p_out / f'fly{fly}_stops.png')
 
@@ -97,3 +96,10 @@ df = fa.summary_df(results)
 df.to_csv(p_out / 'summary.csv', index=False)
 df
 
+
+# %% [markdown]
+# The next cell generates the annotated video, which takes some time to run.
+
+# %%
+# optional: generate annotated video
+fa.annotate_video(p_video, p_out / 'video_annotated.avi', results)

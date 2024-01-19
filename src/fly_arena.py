@@ -3,11 +3,13 @@ import pandas as pd
 from scipy.ndimage import uniform_filter1d
 
 import matplotlib.pyplot as plt
+from matplotlib import colors
 
 from scipy.io import loadmat
 import h5py
 
-from PIL import Image
+from skvideo.io import vread, vwrite
+from PIL import ImageDraw, Image
 
 
 def load_track(matlab_file):
@@ -242,6 +244,49 @@ def count_stops(results, thresh_vel, thresh_walk, thresh_stop):
         res['n_stop_frames_left'] = f_l
         res['n_stop_frames_right'] = f_r
         res['stop_frames'] = stop
+
+def annotate_video(video_in, video_out, results):
+    '''Annotate video with stop numbers
+
+    This will annotate each frame in the the chamber recording where a 
+    fly is stopping. The number of the stopping bout is written on the fly.
+
+    Parameters
+    ----------
+    video_in : path-like
+        Path to input video
+    video_out : path-like
+        Path to output video
+    results : dict
+        Dictionary with fly as keys and dict with results as values
+    '''
+
+    vid = vread(str(video_in))
+    for i, res in results.items():
+
+        # full trajectory
+        x, y = res['x_pxl'].astype(int), res['y_pxl'].astype(int)
+        
+        # cycle through tab10 cmap
+        rgb = tuple([int(f*255) for f in colors.to_rgb('C{}'.format(i))])
+
+        stop = res['stop_frames']
+        split = np.split(stop, np.flatnonzero(np.diff(stop)) + 1)
+        n_stops = 0
+        for s in split:
+            if s.sum(): # only stops
+                n_stops += 1
+                for frame in s.index: # add marker to all frames in stop
+                    img = Image.fromarray(vid[frame])
+                    draw = ImageDraw.Draw(img)
+                    draw.text((x[frame], y[frame]), str(n_stops), rgb)
+                    vid[frame] = np.array(img)
+
+    vwrite(str(video_out), vid)
+                    
+
+    
+    
 
 
 
