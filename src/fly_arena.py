@@ -390,6 +390,10 @@ def summary_df(results):
         - ratio_stop_frames_right: ratio of stopping frames in right side of chamber to all frames
         - stops_per_frame_left: number of stopping bouts per frame on left side of chamber
         - stops_per_frame_right: number of stopping bouts per frame on right side of chamber
+        - avg_velocity_raw_left: average velocity in pixels per frame on left side of chamber
+        - avg_velocity_raw_right: average velocity in pixels per frame on right side of chamber
+        - avg_velocity_smoothed_left: average smoothed velocity in pixels per frame on left side of chamber
+        - avg_velocity_smoothed_right: average smoothed velocity in pixels per frame on right side of chamber
 
     Parameters
     ----------
@@ -416,6 +420,10 @@ def summary_df(results):
             "ratio_stop_frames_right",
             "stops_per_frame_left",
             "stops_per_frame_right",
+            "avg_velocity_raw_left",
+            "avg_velocity_raw_right",
+            "avg_velocity_smoothed_left",
+            "avg_velocity_smoothed_right",
         ]
     )
     df.index.name = "fly"
@@ -423,7 +431,9 @@ def summary_df(results):
     for i, res in results.items():
         fly = i + 1
 
-        nfl, nfr = res["left_mask"].sum(), res["right_mask"].sum()
+        ml, mr = res["left_mask"], res["right_mask"]
+
+        nfl, nfr = ml.sum(), mr.sum()
         rfrl = nfr / nfl if nfl > 0 else 0
         nan = res["nan_frames"]
 
@@ -437,6 +447,10 @@ def summary_df(results):
         rsfr = nsfr / nfr if nfr > 0 else 0
         spfl = nsl / nfl if nfl > 0 else 0
         spfr = nsr / nfr if nfr > 0 else 0
+
+        vl, vr = res["velocity"][ml[:-1]].mean(), res["velocity"][mr[:-1]].mean()
+        vlsm, vrsm = res["velocity_smoothed"][ml[:-1]].mean(), res["velocity_smoothed"][mr[:-1]].mean()
+        
         df.loc[fly, :] = [
             nfl,
             nfr,
@@ -450,6 +464,10 @@ def summary_df(results):
             rsfr,
             spfl,
             spfr,
+            vl,
+            vr,
+            vlsm,
+            vrsm,
         ]
 
     return df
