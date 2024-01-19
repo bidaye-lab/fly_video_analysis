@@ -13,9 +13,9 @@ from PIL import ImageDraw, Image
 
 
 def load_track(matlab_file):
-    '''Load fly tracker data from matlab file
+    """Load fly tracker data from matlab file
 
-    Matlab file generated with 
+    Matlab file generated with
     https://github.com/jstaf/fly_tracker
 
     Parameters
@@ -27,25 +27,25 @@ def load_track(matlab_file):
     -------
     data : np.ndarray
         Array of shape (n_flies, n_frames, 2) with x and y coordinates
-    '''
-
+    """
 
     try:
         # matlab file pre 7.3
         m = loadmat(matlab_file, squeeze_me=True, struct_as_record=False)
-        data = vars(m['trk'])['data'][:, :, [0, 1]]
+        data = vars(m["trk"])["data"][:, :, [0, 1]]
     except NotImplementedError:
         # matlab file since 7.3
-        with h5py.File(matlab_file, 'r') as f:
-            data = f['trk']['data'][()].T[:, :, [0, 1]]
+        with h5py.File(matlab_file, "r") as f:
+            data = f["trk"]["data"][()].T[:, :, [0, 1]]
 
     return data
-    
+
+
 def load_separation(separation_file):
-    '''File with separation line between left and right side of chamber
+    """File with separation line between left and right side of chamber
 
     The line is defined by a series of points drawn for example with ImageJ.
-    It does not need to span the whole chamber, but it need to cover the 
+    It does not need to span the whole chamber, but it need to cover the
     part of the y axis where the flies are walking.
 
     Parameters
@@ -57,14 +57,15 @@ def load_separation(separation_file):
     -------
     sep : np.ndarray
         Array of shape (n_points, 2) with x and y coordinates
-    '''
-     
+    """
+
     sep = np.loadtxt(separation_file).astype(int)
 
     return sep
 
+
 def get_line(sep):
-    '''Get line separating left and right side of chamber based on separation points
+    """Get line separating left and right side of chamber based on separation points
 
     Line is defines a dict with ints for values and keys mapping y to x pixels
 
@@ -77,7 +78,7 @@ def get_line(sep):
     -------
     line : dict
         Dictionary with y as keys and x as values
-    '''
+    """
 
     # define line separating left and right
     line = dict()
@@ -89,15 +90,13 @@ def get_line(sep):
         x = np.linspace(p1[0], p2[0], pxl + 1).astype(int)
         y = np.linspace(p1[1], p2[1], pxl + 1).astype(int)
 
-        line = {**line, **{ j: i for i, j in zip(x, y)}}
+        line = {**line, **{j: i for i, j in zip(x, y)}}
 
     return line
 
 
-
-
 def get_sides(data, line):
-    '''Analyze fly trajectories and assign frames to left or right side of chamber
+    """Analyze fly trajectories and assign frames to left or right side of chamber
 
     Results are returned as a dictionary with fly as keys (0-indexed) and the
     following values:
@@ -118,12 +117,11 @@ def get_sides(data, line):
     -------
     results : dict
         Dictionary with fly as keys and dict with results as values
-    '''
+    """
 
     results = dict()
 
-    for fly, xy in enumerate(data):
-
+    for i_fly, xy in enumerate(data):
         # drop nan
         fnan = np.isnan(xy).any(axis=1)
         xy = xy[~fnan]
@@ -136,19 +134,19 @@ def get_sides(data, line):
         bl = np.array([line[int(j)] >= i for i, j in zip(x, y)])
         br = ~bl
 
-        results[fly] = {
-            'x_pxl': x,
-            'y_pxl': y,
-            'left_mask': bl,
-            'right_mask': br,
-            'nan_frames': fnan.sum(),
+        results[i_fly] = {
+            "x_pxl": x,
+            "y_pxl": y,
+            "left_mask": bl,
+            "right_mask": br,
+            "nan_frames": fnan.sum(),
         }
 
     return results
 
 
 def add_velocity(results, sigma):
-    '''Add velocity to results dict
+    """Add velocity to results dict
 
     The following keys are added to the results dict:
     - velocity: velocity in pixels per frame
@@ -160,30 +158,30 @@ def add_velocity(results, sigma):
         Dictionary with fly as keys and dict with results as values
     sigma : float
         Sigma for Gaussian filter to smooth velocity
-    '''
+    """
 
     for _, res in results.items():
-
         # get x and y
-        x = res['x_pxl']
-        y = res['y_pxl']
+        x = res["x_pxl"]
+        y = res["y_pxl"]
 
         # get velocity
         vel = np.linalg.norm(np.diff(np.array([x, y]).T, axis=0), axis=1)
-        vel_smth = np.linalg.norm(np.diff(uniform_filter1d(np.array([x, y]).T, sigma, axis=0), axis=0), axis=1)
+        vel_smth = np.linalg.norm(
+            np.diff(uniform_filter1d(np.array([x, y]).T, sigma, axis=0), axis=0), axis=1
+        )
 
         # add to results
-        res['velocity'] = vel
-        res['velocity_smoothed'] = vel_smth
-
+        res["velocity"] = vel
+        res["velocity_smoothed"] = vel_smth
 
 
 def count_stops(results, thresh_vel, thresh_walk, thresh_stop):
-    '''Add stop counts to results dict
+    """Add stop counts to results dict
 
     Smoothed velocity is used to define stopping and walking bouts
     and can be controlled with the thresh_* parameters.
-     
+
     The following keys are added to the results dict:
     - n_stop_left: number of stopping bouts on left side of chamber
     - n_stop_right: number of stopping bouts on right side of chamber
@@ -201,11 +199,10 @@ def count_stops(results, thresh_vel, thresh_walk, thresh_stop):
         Ignore walking bouts shorter than this
     thresh_stop : int
         Ignore stopping bouts shorter than this
-    '''
-    
+    """
+
     for _, res in results.items():
-        
-        stop = pd.Series(res['velocity_smoothed'] < thresh_vel)
+        stop = pd.Series(res["velocity_smoothed"] < thresh_vel)
 
         # cycle through stop and walk periods
         split = np.split(stop, np.flatnonzero(np.diff(stop)) + 1)
@@ -228,7 +225,7 @@ def count_stops(results, thresh_vel, thresh_walk, thresh_stop):
         for s in split:
             if s.sum():
                 f_i = s.index[0]
-                if res['left_mask'][f_i]:
+                if res["left_mask"][f_i]:
                     n_r += 1
                     f_r += s.sum()
                 else:
@@ -236,19 +233,20 @@ def count_stops(results, thresh_vel, thresh_walk, thresh_stop):
                     f_l += s.sum()
 
                 for f in s.index:
-                    x = res['x_pxl'][f].astype(int)
-                    y = res['y_pxl'][f].astype(int)
+                    x = res["x_pxl"][f].astype(int)
+                    y = res["y_pxl"][f].astype(int)
 
-        res['n_stop_left'] = n_l
-        res['n_stop_right'] = n_r
-        res['n_stop_frames_left'] = f_l
-        res['n_stop_frames_right'] = f_r
-        res['stop_frames'] = stop
+        res["n_stop_left"] = n_l
+        res["n_stop_right"] = n_r
+        res["n_stop_frames_left"] = f_l
+        res["n_stop_frames_right"] = f_r
+        res["stop_frames"] = stop
+
 
 def annotate_video(video_in, video_out, results):
-    '''Annotate video with stop numbers
+    """Annotate video with stop numbers
 
-    This will annotate each frame in the the chamber recording where a 
+    This will annotate each frame in the the chamber recording where a
     fly is stopping. The number of the stopping bout is written on the fly.
 
     Parameters
@@ -259,39 +257,33 @@ def annotate_video(video_in, video_out, results):
         Path to output video
     results : dict
         Dictionary with fly as keys and dict with results as values
-    '''
+    """
 
     vid = vread(str(video_in))
     for i, res in results.items():
-
         # full trajectory
-        x, y = res['x_pxl'].astype(int), res['y_pxl'].astype(int)
-        
-        # cycle through tab10 cmap
-        rgb = tuple([int(f*255) for f in colors.to_rgb('C{}'.format(i))])
+        x, y = res["x_pxl"].astype(int), res["y_pxl"].astype(int)
 
-        stop = res['stop_frames']
+        # cycle through tab10 cmap
+        rgb = tuple([int(f * 255) for f in colors.to_rgb("C{}".format(i))])
+
+        stop = res["stop_frames"]
         split = np.split(stop, np.flatnonzero(np.diff(stop)) + 1)
         n_stops = 0
         for s in split:
-            if s.sum(): # only stops
+            if s.sum():  # only stops
                 n_stops += 1
-                for frame in s.index: # add marker to all frames in stop
+                for frame in s.index:  # add marker to all frames in stop
                     img = Image.fromarray(vid[frame])
                     draw = ImageDraw.Draw(img)
                     draw.text((x[frame], y[frame]), str(n_stops), rgb)
                     vid[frame] = np.array(img)
 
     vwrite(str(video_out), vid)
-                    
-
-    
-    
 
 
-
-def plot_trajectory(p_png, sep, line, res, path=''):
-    '''Plot fly trajectory and separation line
+def plot_trajectory(p_png, sep, line, res, path=""):
+    """Plot fly trajectory and separation line
 
     Parameters
     ----------
@@ -305,8 +297,8 @@ def plot_trajectory(p_png, sep, line, res, path=''):
         Dictionary with results for a single fly
     path : path-like, optional
         If not '', save plot to disk and close figure, by default ''
-    '''
-        
+    """
+
     # load first frame
     img = Image.open(p_png)
 
@@ -316,26 +308,27 @@ def plot_trajectory(p_png, sep, line, res, path=''):
     ax.imshow(img)
 
     # plot line defining points
-    ax.scatter(sep[:,0], sep[:,1], zorder=99, color='k')
+    ax.scatter(sep[:, 0], sep[:, 1], zorder=99, color="k")
 
     # plot line definition
     y, x = line.keys(), line.values()
-    ax.plot(x, y, color='C3', zorder=98)
-    
+    ax.plot(x, y, color="C3", zorder=98)
+
     # plot trajectories
     cmap_paired = plt.cm.tab20.colors
-    x, y = res['x_pxl'], res['y_pxl']
-    l, r = res['left_mask'], res['right_mask']
+    x, y = res["x_pxl"], res["y_pxl"]
+    l, r = res["left_mask"], res["right_mask"]
 
-    ax.scatter(x[l], y[l], marker=',', s=1, color=cmap_paired[2*0])
-    ax.scatter(x[r], y[r], marker=',', s=1, color=cmap_paired[2*0 + 1])
+    ax.scatter(x[l], y[l], marker=",", s=1, color=cmap_paired[2 * 0])
+    ax.scatter(x[r], y[r], marker=",", s=1, color=cmap_paired[2 * 0 + 1])
 
     if path:
         fig.savefig(path)
         plt.close(fig)
 
-def plot_velocity_and_stops(res, thresh_vel, xscale=1, path=''):
-    '''Plot velocity and stops
+
+def plot_velocity_and_stops(res, thresh_vel, xscale=1, path=""):
+    """Plot velocity and stops
 
     This is useful to check if stop detection thresholds are set correctly.
 
@@ -349,39 +342,40 @@ def plot_velocity_and_stops(res, thresh_vel, xscale=1, path=''):
         Scale x axis by this factor, by default 1
     path : path-like, optional
         If not '', save plot to disk and close figure, by default ''
-    '''
-  
-    y = res['velocity']
+    """
+
+    y = res["velocity"]
     fig, ax = plt.subplots(figsize=(5 * len(y) / 1000 * xscale, 5))
 
-    ax.plot(y, c='C0', label='raw trace')
+    ax.plot(y, c="C0", label="raw trace")
 
-    y = res['velocity_smoothed']
-    ax.plot(y, c='C1', label='smoothed')
+    y = res["velocity_smoothed"]
+    ax.plot(y, c="C1", label="smoothed")
     a, b = y.min(), y.max()
     ymin, ymax = a - 0.1 * (b - a), b + 0.1 * (b - a)
 
-    stop = res['stop_frames']
+    stop = res["stop_frames"]
     x = stop.index[stop]
     y = np.zeros_like(x) - 0.25
-    ax.scatter(x, y, marker='.', color='k')
+    ax.scatter(x, y, marker=".", color="k")
 
-    ax.axhline(thresh_vel, c='gray', ls='--')
+    ax.axhline(thresh_vel, c="gray", ls="--")
 
-    ax.axhline(0, c='k', lw=0.5)
-    ax.set_xlabel('frame')
-    ax.set_ylabel('velocity')
+    ax.axhline(0, c="k", lw=0.5)
+    ax.set_xlabel("frame")
+    ax.set_ylabel("velocity")
     ax.set_ylim(ymin, ymax)
-    ax.set_title('stops L: {} R: {}'.format(res['n_stop_left'], res['n_stop_right']))
+    ax.set_title("stops L: {} R: {}".format(res["n_stop_left"], res["n_stop_right"]))
     ax.margins(x=0)
-    ax.legend(loc='upper right')
+    ax.legend(loc="upper right")
 
     if path:
         fig.savefig(path)
         plt.close(fig)
 
+
 def summary_df(results):
-    '''Generate summary dataframe from results dict
+    """Generate summary dataframe from results dict
 
        Dataframe has fly as index and the following columns:
         - n_frames_left: number of frames on left side of chamber
@@ -406,37 +400,56 @@ def summary_df(results):
     -------
     df : pd.DataFrame
         Summary dataframe
-    '''
+    """
 
-    df = pd.DataFrame(columns=[
-        'n_frames_left',
-        'n_frames_right',
-        'ratio_frames_right_left',
-        'n_frames_dropped',
-        'n_stops_left',
-        'n_stops_right',
-        'n_stop_frames_left',
-        'n_stop_frames_right',
-        'ratio_stop_frames_left',
-        'ratio_stop_frames_right',
-        'stops_per_frame_left',
-        'stops_per_frame_right'
-        ])
-    df.index.name = 'fly'
+    df = pd.DataFrame(
+        columns=[
+            "n_frames_left",
+            "n_frames_right",
+            "ratio_frames_right_left",
+            "n_frames_dropped",
+            "n_stops_left",
+            "n_stops_right",
+            "n_stop_frames_left",
+            "n_stop_frames_right",
+            "ratio_stop_frames_left",
+            "ratio_stop_frames_right",
+            "stops_per_frame_left",
+            "stops_per_frame_right",
+        ]
+    )
+    df.index.name = "fly"
 
     for i, res in results.items():
-        
         fly = i + 1
 
-        nfl, nfr = res['left_mask'].sum(), res['right_mask'].sum()
+        nfl, nfr = res["left_mask"].sum(), res["right_mask"].sum()
         rfrl = nfr / nfl if nfl > 0 else 0
-        nan = res['nan_frames']
+        nan = res["nan_frames"]
 
-        nsl, nsr, nsfl, nsfr = res['n_stop_left'], res['n_stop_right'], res['n_stop_frames_left'], res['n_stop_frames_right']
+        nsl, nsr, nsfl, nsfr = (
+            res["n_stop_left"],
+            res["n_stop_right"],
+            res["n_stop_frames_left"],
+            res["n_stop_frames_right"],
+        )
         rsfl = nsfl / nfl if nfl > 0 else 0
         rsfr = nsfr / nfr if nfr > 0 else 0
         spfl = nsl / nfl if nfl > 0 else 0
         spfr = nsr / nfr if nfr > 0 else 0
-        df.loc[fly, :] = [ nfl, nfr, rfrl, nan, nsl, nsr, nsfl, nsfr, rsfl, rsfr, spfl, spfr ]
+        df.loc[fly, :] = [
+            nfl,
+            nfr,
+            rfrl,
+            nan,
+            nsl,
+            nsr,
+            nsfl,
+            nsfr,
+            rsfl,
+            rsfr,
+            spfl,
+            spfr,
+        ]
 
     return df
