@@ -19,57 +19,81 @@
 # %autoreload 2
 
 from pathlib import Path
-import pandas as pd
+from src import fly_arena as fa
 
-from src import (
-    fly_arena as fa
-)
 
+# %% [markdown]
+# # Load data
+# Here we choose which data files to use for the analysis and 
+# create an output directory to store the results.
+#
+# We need to define the following:
+# - `p_mat`: matlab file with tracking data
+# - `p_sep`: text file with separation line
+# - `p_video`: video recording of chamber
+# - `p_frame`: example frame for plotting
+# - `p_out`: output directory 
+#
+#
+# Then, we load the data and split the trajectories into left and right side of the chamber.
 
 # %%
-p_mat = Path('./right_left/starved-bb/starved-bb-track.mat')
-p_sep = './right_left/coordinates.txt'
-p_frame = './right_left/frame.png'
+# select files necessary for analysis
+data_root = Path('../data/side_assay/')
 
-p_out = p_mat.parent / f'{p_mat.stem}_side_analysis'
+p_mat = data_root / 'starved-bb-track.mat' 
+p_sep = data_root / 'coordinates.txt' 
+p_video = data_root / 'starved-bb.avi' 
+p_frame = data_root / 'frame.png'
+
+# create output directory
+p_out = data_root / f'{p_video.stem}_side_analysis'
 p_out.mkdir(exist_ok=True)
 
-
-# %%
-
+# load tracking data and separation line
 data = fa.load_track(p_mat)
-
 sep = fa.load_separation(p_sep)
-
 line = fa.get_line(sep)
 
+# use separation line analyze trajectories
 results = fa.get_sides(data, line)
 
+# %% [markdown]
+# # Analyze behavior
+#
+# The trajectories will tell us how much time the flies spend in each side of the chamber
+# and how often they stop.
+# We can fine-tune the analysis by changing the following parameters:
+# - `thresh_walk`: Minimum number of frames for walking bout
+# - `thresh_stop`: Minimum number of frames for stopping bout
+# - `thresh_vel`: Threshold for velocity to define stopping in pxl/frame
+# - `smooth_vel`: Gaussian kernel width for smoothing velocity
+#
+# The following outputs are geneated in the `p_out` directory:
+# - `fly{n}_trajectories.png`: left/right separation of trajectory for fly n 
+# - `fly{n}_stops.png`: velocity traces and stops for fly n
+# - `summary.csv`: summary for all flies
 
 # %%
+# thresholds for stop analysis
+thresh_stop, thresh_walk = 5, 5
+thresh_vel = 0.25
+smooth_vel = 15
 
-df = pd.DataFrame({
-    'frames_left' : pd.Series(dtype=int),
-    'frames_right': pd.Series(dtype=int),
-    'ratio' : pd.Series(dtype=float),
-    'dropped_frames' : pd.Series(dtype=int),
-})
+# extract velocity and count stops
+fa.add_velocity(results, sigma=smooth_vel)
+fa.count_stops(results, thresh_vel, thresh_walk, thresh_stop)
 
+for fly, res in results.items():
 
-df.index.name = 'fly'
+    # plot trajectories
+    fa.plot_trajectory(p_frame, sep, line, res, path=p_out / f'fly{fly}_trajectories.png')
 
-for i, res in results.items():
-    
-    fly = i + 1
+    # plot velocity and stops
+    fa.plot_velocity_and_stops(res, thresh_vel, path=p_out / f'fly{fly}_stops.png')
 
-    fa.plot_sides(p_frame, sep, line, res, p_out / f'fly_{fly}.png')
-
-    fl, fr = res['left_mask'].sum(), res['right_mask'].sum()
-    ratio = fr / fl if fl > 0 else 0
-    nan = res['nan_frames']
-
-    df.loc[fly, :] = [ fl, fr, ratio, nan ]
-
+# summary statistics
+df = fa.summary_df(results)
+df.to_csv(p_out / 'summary.csv', index=False)
 df
 
-# %%
