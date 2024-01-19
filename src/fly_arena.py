@@ -443,7 +443,6 @@ def summary_df(results):
             res["n_stop_frames_left"],
             res["n_stop_frames_right"],
         )
-
         rsfl = nsfl / nfl if nfl > 0 else 0
         rsfr = nsfr / nfr if nfr > 0 else 0
         spfl = nsl / nfl if nfl > 0 else 0
