@@ -74,6 +74,9 @@ results = fa.get_sides(data, line)
 # - `fly{n}_stops.png`: velocity traces and stops for fly n
 # - `summary.csv`: summary for all flies
 # - `video_annotated.avi`: chamber recording showing the stopping bouts
+#
+# IMPORTANT: Pay attention to the `nan_frames` columns.
+# The fly tracker may produce NaN values for some frames, which we replace with the last observed value to ensure that the data points correspond to the video frames.
 
 # %%
 # thresholds for stop analysis
@@ -83,6 +86,7 @@ smooth_vel = 15
 
 # extract velocity and count stops
 fa.add_velocity(results, sigma=smooth_vel)
+fa.add_angle_change(results)
 fa.count_stops(results, thresh_vel, thresh_walk, thresh_stop)
 
 for fly, res in results.items():
@@ -98,8 +102,16 @@ df
 
 
 # %% [markdown]
-# The next cell generates the annotated video, which takes some time to run.
+# The next cells generate some annotated videos, which takes some time to run.
 
 # %%
-# optional: generate annotated video
-fa.annotate_video(p_video, p_out / 'video_annotated.avi', results)
+# optional: generate stop video
+vid = fa.load_video(p_video)
+fa.annotate_video(vid, p_out / 'video_stop.avi', results)
+
+# %%
+# optional: generate angle video
+vid = fa.load_video(p_video)
+for fly, res in results.items():
+    print(fly)
+    fa.make_angle_video(vid, p_out / f'video_angles_fly{fly}.mp4', res, n_jobs=-1)
