@@ -17,3 +17,6 @@ dependencies:
   - scikit-video
   - ffmpeg
   - numpy<1.24
+  - imageio-ffmpeg
+  - imageio
+  - joblib
