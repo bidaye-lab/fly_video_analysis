@@ -346,8 +346,8 @@ def _format_angle(angle, _):
         angle = angle - 360
     return f'{angle:1.0f}'
 
-def plot_angle_frame(vid, res, frame, prev_frames, borders=50, path=''):
-    '''Plot orientation trace, velocity, angle and angle change for a single frame
+def plot_fancy_frame(vid, res, frame, prev_frames, borders=50, path=''):
+    '''Plot orientation trace, velocity, stops, angle and angle change for a single frame
 
     Parameters
     ----------
@@ -372,12 +372,6 @@ def plot_angle_frame(vid, res, frame, prev_frames, borders=50, path=''):
 
     # current frame
     img = vid[frame]
-
-    # original traces
-    x, y, ori, dori, v, v_smth = res['x_pxl'], res['y_pxl'], res['ori'], res['dori'], res['velocity'], res['velocity_smoothed']
-
-    # pad all arays with nans to allow plotting of the first frames
-    x, y, ori, dori, v, v_smth = [ _pad_nan(i, prev_frames) for i in [x, y, ori, dori, v, v_smth]]
     
     # new index of current frame
     frame = frame + prev_frames 
@@ -389,7 +383,14 @@ def plot_angle_frame(vid, res, frame, prev_frames, borders=50, path=''):
     s = slice(frame-prev_frames+1, frame+1)
 
     # select data
-    x, y, ori, dori, v, v_smth = [i[s] for i in [x, y, ori, dori, v, v_smth]]
+    keys = ['x_pxl', 'y_pxl', 'ori', 'dori', 'velocity', 'velocity_smoothed', 'stop_frames']
+    l = []
+    for k in keys:
+        arr = res[k]
+        arr = _pad_nan(arr, prev_frames)
+        arr = arr[s]
+        l.append(arr)
+    x, y, ori, dori, v, v_smth, stop = l
 
     # initialize figure
     fig = plt.figure(figsize=(20,10))
@@ -402,9 +403,11 @@ def plot_angle_frame(vid, res, frame, prev_frames, borders=50, path=''):
 
     # plot original trace
     ax.scatter(x, y, s=10, zorder=10, c=t)
+    # make stops red
+    ax.scatter(x[stop], y[stop], s=10, zorder=11, c='firebrick')
     ax.set_axis_off()
 
-    # add head direction
+    # add head direction arrows
     def _add_arrow(ax, x, y, angle, color='.2', scale=4):
         dx, dy = np.cos(angle), np.sin(angle)
         ax.arrow(x, y, scale*dx, scale*dy, fc=color, ec=color, head_width=scale*.5, head_length=scale*.5)
@@ -412,7 +415,7 @@ def plot_angle_frame(vid, res, frame, prev_frames, borders=50, path=''):
     for xi, yi, oi in zip(x, y, ori):
         _add_arrow(ax, xi, yi, oi)
 
-    # trim axis
+    # zoom in on current part of trajectory
     x_med = (np.nanmax(x) + np.nanmin(x)) / 2
     y_med = (np.nanmax(y) + np.nanmin(y)) / 2
     width_xy = np.nanmax([
@@ -425,9 +428,14 @@ def plot_angle_frame(vid, res, frame, prev_frames, borders=50, path=''):
 
     # next plot: velocity
     ax = fig.add_subplot(gs[0, 1])
-    ax.set_title('Velocity (raw and smoothed)')
+    ax.set_title('Velocity (raw and smoothed) + Stops')
+    # raw velocity
     ax.scatter(t, v, c=t)
+    # smoothed velocity
     ax.plot(t, v_smth, c='gray', zorder=10)
+    # add stops
+    for s in np.flatnonzero(stop[:-1]):
+        ax.axvspan(t[s], t[s+1], color='lightcoral', zorder=0)
 
     # next plot: angle
     ax = fig.add_subplot(gs[1, 1])
@@ -447,7 +455,7 @@ def plot_angle_frame(vid, res, frame, prev_frames, borders=50, path=''):
     plt.close(fig)
     return fig
 
-def make_angle_video(video, p_video_out, res, prev_frames=50, fps=30, n_jobs=-1):
+def make_control_video(video, p_video_out, res, prev_frames=50, fps=30, n_jobs=-1):
     '''Make video with angle and velocity plots
 
     Parameters
@@ -467,7 +475,7 @@ def make_angle_video(video, p_video_out, res, prev_frames=50, fps=30, n_jobs=-1)
     '''
 
     def get_image(frame, dpi=100):
-        fig = plot_angle_frame(video, res, frame, prev_frames)
+        fig = plot_fancy_frame(video, res, frame, prev_frames)
         img = _convert_figure_to_array(fig, dpi)
         plt.close(fig)
         del fig
