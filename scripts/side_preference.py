@@ -37,6 +37,12 @@ from src import fly_arena as fa
 #
 # Then, we load the data and split the trajectories into left and right side of the chamber.
 
+# %% [markdown]
+# ## Create loop to cycle ovr all folders
+
+# %%
+# add code here
+
 # %%
 # select files necessary for analysis
 data_root = Path('../data/side_assay/')
