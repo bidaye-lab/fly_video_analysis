@@ -105,13 +105,24 @@ df
 # The next cells generate some annotated videos, which takes some time to run.
 
 # %%
-# optional: generate stop video
+# generate stop video
 vid = fa.load_video(p_video)
 fa.annotate_video(vid, p_out / 'video_stop.avi', results)
 
 # %%
-# optional: generate angle video
+# generate new control video
 vid = fa.load_video(p_video)
 for fly, res in results.items():
     print(fly)
-    fa.make_angle_video(vid, p_out / f'video_angles_fly{fly}.mp4', res, n_jobs=-1)
+    fa.make_control_video(vid, p_out / f'video_fly{fly}.mp4', res, n_jobs=-1)
+
+# %%
+# optional: manually select part of trajectory to plot
+fa.plot_fancy_frame(
+    vid,
+    results[0], # select fly
+    frame=820, # select frame
+    prev_frames=500, # number of previous frames to plot
+    )
+
+# %%
