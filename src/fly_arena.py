@@ -608,6 +608,9 @@ def summary_df(results):
         - avg_angle_change: average change in angle in degrees per frame
         - avg_angle_change_left: average change in angle in degrees per frame on left side of chamber
         - avg_angle_change_right: average change in angle in degrees per frame on right side of chamber
+        - avg_abs_angle_change: average absolute change in angle in degrees per frame
+        - avg_abs_angle_change_left: average absolute change in angle in degrees per frame on left side of chamber
+        - avg_abs_angle_change_right: average absolute change in angle in degrees per frame on right side of chamber
 
     Parameters
     ----------
@@ -642,6 +645,9 @@ def summary_df(results):
             "avg_angle_change",
             "avg_angle_change_left",
             "avg_angle_change_right",
+            "avg_abs_angle_change",
+            "avg_abs_angle_change_left",
+            "avg_abs_angle_change_right",
         ]
     )
     df.index.name = "fly"
@@ -670,10 +676,14 @@ def summary_df(results):
         vl, vr = np.nanmean(res["velocity"][ml]), np.nanmean(res["velocity"][mr])
         vlsm, vrsm = np.nanmean(res["velocity_smoothed"][ml]), np.nanmean(res["velocity_smoothed"][mr])
 
-        dori = res["dori"]
+        dori = res["dori"].copy()
         dori, doril, dorir = np.nanmean(dori), np.nanmean(dori[ml]), np.nanmean(dori[mr])
         dori, doril, dorir = np.rad2deg(dori), np.rad2deg(doril), np.rad2deg(dorir)
         
+        abs_dori = np.abs(res["dori"])
+        abs_dori, abs_doril, abs_dorir = np.nanmean(abs_dori), np.nanmean(abs_dori[ml]), np.nanmean(abs_dori[mr])
+        abs_dori, abs_doril, abs_dorir = np.rad2deg(abs_dori), np.rad2deg(abs_doril), np.rad2deg(abs_dorir)
+
         df.loc[fly, :] = [
             n_frames,
             nfl,
@@ -691,6 +701,7 @@ def summary_df(results):
             vl, vr,
             vlsm, vrsm,
             dori, doril, dorir,
+            abs_dori, abs_doril, abs_dorir,
         ]
 
     return df
