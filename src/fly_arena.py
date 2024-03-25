@@ -131,6 +131,8 @@ def get_sides(data, line):
 
         # replace nan with previous value
         xyo = pd.DataFrame(xyo).ffill(axis=0).values
+        # replace nan at beginning with first value
+        xyo = pd.DataFrame(xyo).bfill(axis=0).values
 
         # get x and y
         x = xyo[:, 0]
